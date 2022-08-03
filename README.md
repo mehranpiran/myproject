@@ -1,5 +1,5 @@
 # myproject
 
-A [workflowr][] project.
+A [myproject][] project.
 
-[workflowr]: https://github.com/workflowr/workflowr
+[myproject]: https://github.com/mehranpiran/myproject
