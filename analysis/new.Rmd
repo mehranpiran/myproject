@@ -1,0 +1,447 @@
+---
+title: "new"
+author: "mehranpiran"
+date: "2022-08-04"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: console
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = "/mnt/market/anclab-rstudio-server/home/mpir0002/Project1")
+```
+
+$~$          
+$~$        
+
+```{r message=F}
+library(Seurat)
+library(tidyverse)
+library(DT)
+library(patchwork)
+```
+
+$~$       
+$~$          
+
+```{r}
+so <- readRDS("scRNA_Seurat_P0.rds")
+so$Identity <- so$Clusters
+```
+
+$~$      
+$~$      
+
+### Cluster sizes        
+
+```{r}
+
+ggplot(so@meta.data, aes(x=Identity)) + 
+  geom_bar(aes(fill = so$Identity)) +
+  coord_flip() +
+  theme(legend.position = "none")
+
+```
+
+$~$      
+$~$       
+
+### Dotplot for markers         
+
+```{r fig.width=12}
+short.markers <- c("Six2", "Cited1", "Wnt4", 'Lhx1', 'Pax8',    'Lef1', 'Lrp2', 'Aldob', 'Podxl', 'Gata3', 'S100g', 'Aqp3', 'Ret', 'Wnt11', 'Wnt9b', 'Hoxb7', 'Upk3a', 'Upk3b', 'Pdgfra', 'Foxd1', 'Penk', 'Acta2',  'Postn', 'Tbx18', 'Dlk1', 'Lum', 'Pecam1', 'Plvap', 'Tyrobp', 'Apoe', 'Hba-a1', 'Top2a', 'Cenpf', 'Hist1h1b', 'mt-Nd4', 'mt-Co3')
+DotPlot(so, features = short.markers,
+        group.by = "Identity") +
+  scale_y_discrete(limits = levels(so$Identity)) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+$~$        
+$~$        
+
+### Cluster Markers        
+
+```{r}     
+
+UE.tip.markers.cites  <- c('Ret',   'Wnt11',    'Crlf1',    'Slco4c1',  'Gata3',    'Hoxb7',    'Calb1')
+UE.tip.markers.others <- c('Gfra1', 'Rbp1', 'Stra6',    'Hs3st3a1', 'Hs3st3b1')
+
+UE.ccd.markers.cites  <- c('Wnt9b','Slit2', 'Gata3',    'Hoxb7',    'Calb1')
+UE.ccd.markers.others <- c('Aqp2',  'Smoc2', 'S100g',   'Fxyd4',    'Tmem213',  'Crybb1')
+
+UE.mcdu.markers.cites  <- c('Upk3a',    'Upk1a',    'Upk1b', 'Gata3',   'Hoxb7','Calb1')
+UE.mcdu.markers.others <- c('Psca', 'Upk2', 'Trp63'  )
+
+# Nephron
+N_NP.markers.cites        <- c("Cited1",    "Crym", "Six2",'Meox1', 'Robo2', 'Itga8')
+N_Com.markers.cites       <- c("Fam132a",   "Wnt4",'Lhx1',  'Ccnd1', 'Fgf8',    'Sfrp2' , 'Pax8',   'Lef1')
+N_Dist.markers.cites      <- c('S100g', 'Mal',  'Wfdc2','Aqp3', 'Aqp2', 'Spp1', 'Gata3', 'Slc12a1', 'Kcnj1')
+N_LOH.markers.cites       <- c("Umod", "Slc12a1")
+N_Prox.markers.cites      <- c('Hnf4a', 'Lrp2', 'Aldob',    'Spp2', 'Slc34a1',  'Cdh6')
+N_Podocyte.markers.cites  <- c('Nphs1', 'Nphs2','Mafb', 'Podxl',    'Synpo',    'Ptpro')
+
+
+#stroma, Cortical Stroma, Collecting Duct, Stroma surrounding Ureter,
+S.markers.cites    <- c('Pdgfra',   'Pdgfrb',   'Col3a1',   'Penk', 'Meg3', 'Postn',    'Lum')
+S_CS.markers.cites <- c('Ntn1', 'Foxd1','Gdnf', 'Pdgfra',   'Pdgfrb',   'Col3a1',   'Penk', 'Meg3', 'Postn',    'Lum')
+S_CD.markers.cites <- c('Lef1', 'Alx1', 'Wnt11',    'Wnt4', 'Pdgfra',   'Pdgfrb',   'Col3a1',   'Penk', 'Meg3', 'Postn',    'Lum')
+S_UR.markers.cites <- c('Tbx18',    'Pdgfra',   'Pdgfrb',   'Col3a1',   'Penk', 'Meg3', 'Postn',    'Lum')
+
+
+# Other, endothelial and immune. e.t.c
+Endo.markers.cites <- c('Pecam1','Cdh5',    'Flt1', 'Kdr',  'Sox17',    'Sox18',    'Tie1')
+Imm.markers.others <- c('Lyz2', 'C1qa', 'Fcer1g',   'Tyrobp',   'Apoe', 'Ctsc')
+Bd.markers.others <- c("Hba-a1",  "Hba-a2",  "Hba-x",   "Hbb-bh1", "Hbb-bs",  "Hbb-bt",  "Hbb-y")
+
+```
+
+$~$       
+$~$       
+
+### Nephron and UE Lineages Feature Plots {.tabset .tabset-pills}     
+
+$~$    
+
+#### UMAP Cluster plot
+
+```{r fig.width=12 , fig.height=8}
+DimPlot(object = so , label = T)
+```
+
+#### Nephron Progenitor Markers
+
+```{r fig.width=16 , fig.height=10}
+FeaturePlot(so, N_NP.markers.cites, combine = FALSE, pt.size = 0.3) %>% wrap_plots(ncol = 3, nrow=2)
+```
+
+#### Commiting Nephron Markers
+
+```{r fig.width=16 , fig.height=14}
+FeaturePlot(so, N_Com.markers.cites, combine = FALSE, pt.size = 0.3) %>% wrap_plots(ncol = 3, nrow=3)
+```
+
+#### Distal Nephron/Connecting Segment Markers
+
+```{r fig.width=16 , fig.height=14}
+FeaturePlot(so, N_Dist.markers.cites, combine = FALSE, pt.size = 0.3) %>% wrap_plots(ncol = 3, nrow=3)
+```
+
+#### Loop of Henle
+
+```{r fig.width=16 , fig.height=10}
+FeaturePlot(so, N_LOH.markers.cites, combine = FALSE, pt.size = 0.3)  %>% wrap_plots(ncol = 2)
+```
+
+#### Proximal Nephron Markers
+
+```{r fig.width=16 , fig.height=10}
+FeaturePlot(so, N_Prox.markers.cites, combine = FALSE, pt.size = 0.3) %>% wrap_plots(ncol = 3, nrow=2)
+```
+
+#### Podocytes Markers
+
+```{r fig.width=16 , fig.height=10}
+FeaturePlot(so, N_Podocyte.markers.cites, combine = FALSE, pt.size = 0.3) %>% wrap_plots(ncol = 3, nrow=2)
+```
+
+#### UE Tip Markers
+
+```{r fig.width=16 , fig.height=14}
+FeaturePlot(so, UE.tip.markers.cites, combine = FALSE, pt.size = 0.3) %>% wrap_plots(ncol = 3, nrow=3)
+```
+
+#### UE Cortical Collecting Duct Marker 
+
+```{r fig.width=16 , fig.height=10}
+FeaturePlot(so, UE.ccd.markers.cites, combine = FALSE, pt.size = 0.3) %>% wrap_plots(ncol = 3, nrow=2)
+```
+
+#### UE Medullary Collecting Duct and Urothelium Markers
+
+```{r fig.width=16 , fig.height=10}
+FeaturePlot(so, UE.mcdu.markers.cites, combine = FALSE, pt.size = 0.3) %>% wrap_plots(ncol = 3, nrow=2)
+```
+
+
+$~$       
+$~$        
+
+### Nephron and UE Lineages Dot Plots {.tabset .tabset-pills}     
+
+$~$     
+
+#### Nephron Progenitor Markers
+
+```{r}
+DotPlot(so, features = N_NP.markers.cites,
+        group.by = "Identity") +
+  scale_y_discrete(limits = levels(so$Identity)) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+    
+
+#### Commiting Nephron Markers         
+
+```{r}
+DotPlot(so, features = N_Com.markers.cites,
+        group.by = "Identity") +
+  scale_y_discrete(limits = levels(so$Identity)) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+#### Distal Nephron/Connecting Segment Markers
+
+```{r}
+DotPlot(so, features = N_Dist.markers.cites,
+        group.by = "Identity") +
+  scale_y_discrete(limits = levels(so$Identity)) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+#### Loop of Henle
+
+```{r}
+DotPlot(so, features = N_LOH.markers.cites,
+        group.by = "Identity") +
+  scale_y_discrete(limits = levels(so$Identity)) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+#### Proximal Nephron Markers
+
+```{r}
+DotPlot(so, features = N_Prox.markers.cites,
+        group.by = "Identity") +
+  scale_y_discrete(limits = levels(so$Identity)) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+#### Podocytes Markers
+
+```{r}
+DotPlot(so, features = N_Podocyte.markers.cites,
+        group.by = "Identity") +
+  scale_y_discrete(limits = levels(so$Identity)) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+#### UE Tip Markers
+
+```{r}
+DotPlot(so, features = UE.tip.markers.cites,
+        group.by = "Identity") +
+  scale_y_discrete(limits = levels(so$Identity)) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+#### UE Cortical Collecting Duct Marker 
+
+```{r}
+DotPlot(so, features = UE.ccd.markers.cites,
+        group.by = "Identity") +
+  scale_y_discrete(limits = levels(so$Identity)) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+#### UE Medullary Collecting Duct and Urothelium Markers
+
+```{r}
+DotPlot(so, features = UE.mcdu.markers.cites,
+        group.by = "Identity") +
+  scale_y_discrete(limits = levels(so$Identity)) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+
+$~$      
+$~$      
+
+
+### Nephron and UE Lineages Violin Plots {.tabset .tabset-pills}       
+
+$~$.      
+
+```{r}
+Vln_Plot = function(feature){
+for(i in 1:length(feature)){
+print(VlnPlot(so, features = feature[i]) + NoLegend())
+}
+}
+```
+
+$~$     
+
+#### Nephron Progenitor Markers
+
+```{r}
+Vln_Plot(N_NP.markers.cites)
+```
+
+#### Commiting Nephron Markers         
+
+```{r}
+# Fam132a was not found
+Vln_Plot(N_Com.markers.cites[2:length(N_Com.markers.cites)])
+```
+
+#### Distal Nephron/Connecting Segment Markers
+
+```{r}
+Vln_Plot(N_Dist.markers.cites)
+```
+
+#### Loop of Henle
+
+```{r}
+Vln_Plot(N_LOH.markers.cites)
+```
+
+#### Proximal Nephron Markers
+
+```{r}
+Vln_Plot(N_Prox.markers.cites)
+```
+
+#### Podocytes Markers
+
+```{r}
+Vln_Plot(N_Podocyte.markers.cites)
+```
+
+#### UE Tip Markers
+
+```{r}
+Vln_Plot(UE.tip.markers.cites)
+```
+
+#### UE Cortical Collecting Duct Marker 
+
+```{r}
+Vln_Plot(UE.ccd.markers.cites)
+```
+
+#### UE Medullary Collecting Duct and Urothelium Markers
+
+```{r}
+Vln_Plot(UE.mcdu.markers.cites)
+```
+
+
+$~$        
+$~$      
+$~$      
+$~$       
+
+
+### Stroma Lineage Feature Plots {.tabset .tabset-pills}       
+
+$~$        
+
+#### Stromal Lineage Markers
+
+```{r fig.width=16 , fig.height=14}
+FeaturePlot(so, S.markers.cites, combine = FALSE, pt.size = 0.3) %>% wrap_plots(ncol = 3, nrow=3)
+```
+
+#### Cortical Stromal Markers
+
+```{r fig.width=20 , fig.height=18}
+FeaturePlot(so, S_CS.markers.cites, combine = FALSE, pt.size = 0.3) %>% wrap_plots(ncol = 3, nrow=4)
+```
+
+#### Collecting Duct Associated Stromal Markers
+
+```{r fig.width=20 , fig.height=18}
+FeaturePlot(so, S_CD.markers.cites, combine = FALSE, pt.size = 0.3) %>% wrap_plots(ncol = 3, nrow=4)
+```
+
+#### Ureteric Stroma Markers
+
+```{r fig.width=16 , fig.height=14}
+FeaturePlot(so, S_UR.markers.cites, combine = FALSE, pt.size = 0.3) %>% wrap_plots(ncol = 3, nrow=3)
+```
+
+$~$       
+$~$         
+
+### Stroma Lineage Dot Plots {.tabset .tabset-pills}
+
+$~$    
+
+#### Stromal Lineage Markers        
+
+```{r}
+DotPlot(so, features = S.markers.cites,
+        group.by = "Identity") +
+  scale_y_discrete(limits = levels(so$Identity)) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+#### Cortical Stroma Markers        
+
+```{r}
+DotPlot(so, features = S_CS.markers.cites,
+        group.by = "Identity") +
+  scale_y_discrete(limits = levels(so$Identity)) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+#### Collecting Duct Associated Stroma Markers     
+
+```{r}
+DotPlot(so, features = S_CD.markers.cites,
+        group.by = "Identity") +
+  scale_y_discrete(limits = levels(so$Identity)) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+#### Ureteric Stroma Markers
+
+```{r}
+DotPlot(so, features = S_UR.markers.cites,
+        group.by = "Identity") +
+  scale_y_discrete(limits = levels(so$Identity)) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+$~$         
+$~$           
+
+
+### Stroma Lineage Violin Plots {.tabset .tabset-pills}       
+
+$~$        
+
+#### Stromal Lineage Markers
+
+```{r}
+Vln_Plot(S.markers.cites)
+
+```
+
+#### Cortical Stromal Markers
+
+```{r}
+Vln_Plot(S_CS.markers.cites)
+
+```
+
+#### Collecting Duct Associated Stromal Markers
+
+```{r}
+Vln_Plot(S_CD.markers.cites)
+
+```
+
+#### Ureteric Stroma Markers
+
+```{r}
+Vln_Plot(S_UR.markers.cites)
+
+```
+
+$~$       
+$~$         
+
