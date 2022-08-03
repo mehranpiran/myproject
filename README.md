@@ -2,4 +2,4 @@
 
 A [myproject][] project.
 
-[myproject]: https://github.com/mehranpiran/myproject
+[myproject]: http://rstudio.anc-lab.cloud.edu.au:8787/session/docs/first-analysis.html
