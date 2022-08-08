@@ -1,0 +1,350 @@
+---
+title: "NicheNet-SCENIC regulon leaders integrated network analysis when Nephron Progenitor sends signal to Ureteric Tip"
+author: "Mehran Piran"
+date: '2022-08-01'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_knit$set(root.dir = "/mnt/market/anclab-rstudio-server/home/mpir0002/Project1/E18/NicheNet/Network Analysis UT/")
+```
+
+$~$           
+$~$           
+
+### Constructing NicheNet-SCENIC integrated network
+
+```{r}
+
+library(igraph)
+library(tidyverse)
+library(ggplot2)
+library(DT)
+
+UT_NP_lr <- readRDS("UT_NP_lr_edgelist.rds")
+UT_NP_lt <- readRDS("UT_NP_lt_edgelist.rds")
+regreg_edgelist <- readRDS("RegReg_edgelist.rds")
+regulons <- readRDS("UT_Regulons.rds")
+colnames(UT_NP_lr) <- c("Ligands" , "Targets")
+lrt <- rbind(UT_NP_lr, UT_NP_lt)
+
+```
+
+$~$             
+$~$              
+
+```{r} 
+
+regreg_edgelist[,1] %>% unique()
+edgelist <- matrix( 0 , dim(regreg_edgelist)[1] , 2) %>% as.data.frame()
+
+for(i in 1:2){
+  
+edgelist[,i] <- regreg_edgelist[,i] %>% strsplit(split = "_") %>% lapply(function(x) x[1]) %>% unlist()
+
+}
+
+colnames(edgelist) <- c("From" , "To")
+
+```
+
+
+$~$             
+$~$              
+
+```{r}
+
+common_genes <- c(intersect(lrt$Ligands , edgelist$From) , intersect(lrt$Ligands , edgelist$To) ,
+intersect(lrt$Targets , edgelist$From) , intersect(lrt$Targets , edgelist$To)) %>% unique()
+common_genes
+
+regulon_names <- names(regulons) %>% strsplit(split = " ") %>% lapply(function(x) x[1]) %>% unlist() %>% 
+  strsplit(split = "_") %>% lapply(function(x) x[1]) %>% unlist()
+
+intersect(regulon_names , common_genes)
+
+genesTokeep <- unique(c(common_genes , regulon_names))
+
+```
+
+
+$~$             
+$~$              
+
+```{r}
+
+if(all(unique(edgelist$From) %in% unique(edgelist$To))){
+  
+  reg_core_edgelist <- edgelist[ edgelist$To %in% genesTokeep , ]
+  
+}else{
+  
+  n <- unique(edgelist$From)[!unique(edgelist$From) %in% unique(edgelist$To)]
+  idx <- edgelist$From %in% n & edgelist$To %in% genesTokeep
+  reg_core_edgelist <- edgelist[ edgelist$To %in% genesTokeep | idx  , ]
+  
+}
+
+rownames(reg_core_edgelist) <- 1:length(reg_core_edgelist[,1])
+dim(reg_core_edgelist)
+
+```
+
+
+$~$             
+$~$              
+
+```{r}
+
+lrt_core <- lrt[lrt$Ligands %in% genesTokeep | lrt$Targets %in% genesTokeep , ]
+dim(lrt_core)
+head(lrt_core)
+
+rownames(lrt_core) <- 1:dim(lrt_core)[1]
+
+colnames(lrt_core) <- c("From" , "To")
+
+edgelist <- rbind(lrt_core , reg_core_edgelist)
+
+if(any(duplicated(edgelist))){
+  
+  edgelist <- edgelist[ !duplicated(edgelist) ,  ]
+}
+
+dim(edgelist)
+head(edgelist)
+
+```
+
+$~$             
+$~$              
+
+```{r}
+
+c(lrt$Ligands,lrt$Targets) %>% unique() %>% length
+c(regreg_edgelist$From,regreg_edgelist$To) %>% unique() %>% length
+c(edgelist$From,edgelist$To) %>% unique() %>% length
+c(lrt_core$From , lrt_core$To) %>% unique() %>% length
+
+```
+
+$~$           
+$~$          
+
+### Network Descriptives           
+
+$~$              
+
+```{r}
+
+net = graph.data.frame(edgelist , directed = T)
+is.connected(net)
+net
+
+```
+
+$~$             
+$~$              
+
+```{r}
+
+n <- names(V(net))[names(V(net)) %in% lrt$Ligands]
+
+V(net)$name[which(names(V(net)) %in% lrt$Ligands)] <- paste0(n,"_L")
+
+edge_density(net, loops=F)
+
+2*ecount(as.undirected(net))/(vcount(as.undirected(net))*(vcount(as.undirected(net))-1))
+
+diameter(net, directed=T)
+
+diam <- get_diameter(net, directed=T)
+diam
+
+```
+
+$~$           
+$~$          
+
+#### Computing Centralities
+            
+$~$              
+
+```{r}
+
+degree <- degree(net,mode = "all")
+degree <- sort(degree , decreasing = T)
+degree <- as.data.frame(degree)
+dim(degree)
+head(degree)
+
+ggplot(degree , mapping = aes(x = degree)) + geom_bar() + 
+  ggtitle(label = "UT_NP Leader Network Degree Distribution") + xlab("Degree") + ylab("Count") +
+  theme(
+    plot.title = element_text(color="black", size=12, face="bold.italic"),
+    axis.title.x = element_text(color="black", size=10, face="bold"),
+    axis.title.y = element_text(color="black", size=10, face="bold")
+  )
+
+```
+            
+$~$              
+
+```{r}
+
+## closenes
+closenes = closeness(net, mode="all", normalized=T) 
+closenes = round(as.data.frame(sort(closenes , decreasing = T) ) , 4)
+dim(closenes)
+head(closenes)
+centr_clo(net, mode="all", normalized=T)$centralization
+
+
+## Betweenness
+b = betweenness(net, directed=T, weights=NA)
+b = round(as.data.frame(sort(b , decreasing = T)) , 4)
+dim(b)
+head(b)
+
+
+## EdgeBetweenness
+EdgeBetweenness = data.frame(as_edgelist(net) , edge_betweenness(net , directed=T , weights=NA))
+colnames(EdgeBetweenness) = c("Gene1" , "Gene2" , "Edge_Betweenness")
+EdgeBetweenness <- EdgeBetweenness %>% arrange(desc(Edge_Betweenness))
+dim(EdgeBetweenness)
+head(EdgeBetweenness)
+
+
+## Distances 
+mean_distance(net, directed=T)
+dis = distances(net)
+dis = as.data.frame(round(sort(apply(dis,1,mean) , decreasing = F) , 4))
+dim(dis)
+head(dis)
+
+
+## Eigen_vector
+eig <- eigen_centrality(net , directed = T , scale = TRUE , weights = NULL)
+eig <- round(as.data.frame(sort(eig$vector , decreasing = T)) , 4)
+dim(eig)
+head(eig)
+
+```
+
+$~$             
+$~$              
+
+```{r}
+
+colnames(dis) <- "Cent"
+colnames(b) <- "Cent"
+colnames(closenes) <- "Cent"
+colnames(degree) <- "Cent"
+colnames(eig) <- "Cent"
+
+dis$genes <- rownames(dis)
+b$genes <- rownames(b)
+closenes$genes <- rownames(closenes)
+degree$genes <- rownames(degree)
+eig$genes <- rownames(eig)
+
+centers <- merge(degree , b , by = "genes") %>% merge(eig , by = "genes") %>% merge(closenes , by = "genes") %>% merge(dis , by = "genes")
+
+colnames(centers) <- c("Genes" , "Degree" , "Betweenness" , "Eigen_vector", "Closeness" , "Distance" )
+centers <- centers %>% arrange(desc(Degree))
+rownames(centers) <- centers$Genes
+centers <- centers[,-1]
+
+```
+
+$~$             
+$~$              
+
+#### Centrality Table   
+
+```{r}
+
+datatable(centers)
+
+```
+
+$~$             
+
+#### Edge Betweenness Centrality Table   
+
+```{r}
+
+datatable(EdgeBetweenness)
+
+```
+
+$~$             
+$~$              
+
+#### Colouring central genes in red
+
+```{r fig.width = 8 , fig.height= 8}
+
+net <- graph_from_data_frame(EdgeBetweenness[,1:2] , directed = T)
+
+E(net)$weight <- EdgeBetweenness[,3]
+
+n <- names(V(net))[names(V(net)) %in% lrt$Ligands]
+
+V(net)$name[which(names(V(net)) %in% lrt$Ligands)] <- paste0(n,"_L")
+
+
+ecol <- rep("black", ecount(net))
+vcol <- rep("sky blue", vcount(net))
+ewidth <- rep(0.2, ecount(net))
+earrow <- rep(0.3, ecount(net))
+e.arrow.w <- rep(0.2, ecount(net))
+
+qs <- quantile(EdgeBetweenness[EdgeBetweenness$Edge_Betweenness > 0 , 3] , probs = seq(0, 1, by= 0.1))
+qs
+ecol[E(net)$weight > as.integer(qs[10])] <- 'red'
+
+qs1 <- quantile(centers[centers$Degree > 1 , 1] , probs = seq(0, 1, by= 0.1))
+qs1
+
+qs2 <- quantile(centers$Betweenness[centers$Betweenness > 0] , probs = seq(0, 1, by= 0.1))
+qs2
+
+qs3 <- quantile(centers$Eigen_vector[centers$Eigen_vector > 0] , probs = seq(0, 1, by= 0.1))
+qs3
+
+idx = centers$Degree >= qs1[9] | centers$Betweenness > as.integer(qs2[3]) | centers$Eigen_vector > qs3[9]
+
+idx = which(names(V(net)) %in% rownames(centers %>% filter(Degree >= qs1[9] | Betweenness > as.integer(qs2[3]) | Eigen_vector > qs3[9])))
+idx1 = which(names(V(net)) %in% regulon_names)
+vcol[idx] <- "red"
+vcol[idx1] <- "green"
+
+
+par(mar=c(0,0,0,0)+2)
+
+plot(net , edge.color=ecol , vertex.color=vcol , vertex.size = 6, vertex.label.dist=0, vertex.label.font = 2 ,
+     vertex.label.cex=0.5, vertex.label.col = "dark blue" , edge.arrow.width = e.arrow.w , 
+     edge.width = ewidth , edge.arrow.size = earrow , layout = layout_with_dh)
+title("UT_NP_Network",cex.main=1,col.main="Black")
+
+
+plot(net , edge.color=ecol , vertex.color=vcol , vertex.size = 9, vertex.label.dist=0, vertex.label.font = 2 ,
+     vertex.label.cex=0.4, vertex.label.col = "dark blue" , edge.arrow.width = e.arrow.w , 
+     edge.width = ewidth , edge.arrow.size = earrow , layout = layout_as_star)
+title("UT_NP_Network",cex.main=1,col.main="Black")
+
+
+
+earrow <- rep(0.3, ecount(net))
+
+plot(net , edge.color=ecol , vertex.color=vcol , vertex.size = 3, vertex.label.dist=0, vertex.label.font = 2 ,
+     vertex.label.cex=0.2, vertex.label.col = "dark blue" , edge.arrow.width = e.arrow.w , 
+     edge.width = ewidth , edge.arrow.size = earrow , layout = layout_as_tree)
+title("UT_NP_Network" , cex.main=1 , col.main="Black")
+
+```
+
+$~$           
+$~$          
